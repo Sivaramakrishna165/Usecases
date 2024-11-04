@@ -15,8 +15,8 @@ Output:
 
 1. For valid_input_data: "Validation passed!"
 2. For invalid_input_data: Error messages indicating what is wrong with each case, such as:
-    "158" is not of type 'integer'
-    123 is not of type 'string'
-    'name' is a required property
+   - "158" is not of type 'integer'
+   - 123 is not of type 'string'
+   - 'name' is a required property
    
 This script demonstrates both successful validation and failures, proving that the schema validation works correctly.
