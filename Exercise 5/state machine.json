@@ -1,0 +1,12 @@
+{
+    "Comment": "A Step Function to process JSON files in S3",
+    "StartAt": "ProcessS3Event",
+    "States": {
+      "ProcessS3Event": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:your-region:your-account-id:function:your-lambda-function-name",
+        "End": true
+      }
+    }
+  }
+  
