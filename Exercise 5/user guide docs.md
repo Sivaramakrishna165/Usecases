@@ -7,6 +7,7 @@ Step 1: Create S3 Buckets
 2. Create Output S3 Bucket
 
     - Follow the same process to create another bucket named your-output-bucket.
+      
 Step 2: Create Lambda Function to Process the JSON File
 Create lambda function by taking the code in same github place.
 
