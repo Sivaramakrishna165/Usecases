@@ -1,3 +1,4 @@
+# Python script to validate the JSON data using the schema
 import json
 import jsonschema
 from jsonschema import validate

@@ -1,3 +1,5 @@
+# Python script that converts the given JSON array into a Python dictionary
+
 # Sample input JSON array
 input_data = [
     {"name": "Person1", "height": 158},

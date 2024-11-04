@@ -1,3 +1,5 @@
+# Python script to convert the given JSON array into a CSV file
+
 import csv
 
 # Sample input JSON array

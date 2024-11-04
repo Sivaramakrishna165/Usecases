@@ -1,3 +1,4 @@
+# Python script that sorts the given JSON array by the height attribute:
 import json
 
 # Sample input JSON array
