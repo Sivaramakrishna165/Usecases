@@ -9,7 +9,8 @@ Schema Definition:
 Validation Function:
 
 1. jsonschema.validate() is used to validate the input data against the defined schema.
-2 If the data does not match the schema, a ValidationError is raised.
+   
+2. If the data does not match the schema, a ValidationError is raised.
 
 Output:
 
