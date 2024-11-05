@@ -4,12 +4,13 @@ import json
 
 def lambda_handler(event, context):
     try:
+        # print(event)
         # Extract the JSON body from the event
-        body = json.loads(event['body'])
-        
+        body = event
+        print(body)
         return {
             'statusCode': 200,
-            'body': json.dumps({'echo': body})
+            'body':  body
         }
     except Exception as e:
         return {
