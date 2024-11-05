@@ -1,30 +1,80 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to deploy AWS artifacts for Exercises 3, 4, and 5.
-
-Parameters:
-  InputBucketName:
-    Type: String
-    Description: Name of the input S3 bucket for Step Functions
-  OutputBucketName:
-    Type: String
-    Description: Name of the output S3 bucket for Step Functions
+Description: CloudFormation template to deploy two AWS Lambda functions.
 
 Resources:
-  # S3 Buckets
   InputBucket:
-    Type: AWS::S3::Bucket:
+    Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Ref InputBucketName
+      BucketName: my-input-bucket-unique-name
 
   OutputBucket:
-    Type: AWS::S3::Bucket:
+    Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Ref OutputBucketName
+      BucketName: my-output-bucket-unique-name
 
-  # IAM Role for Lambda Functions
+  # First Lambda Function (Price and Discount Calculation)
+  PriceDiscountLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: PriceDiscountLambdaFunction
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+
+          def lambda_handler(event, context):
+              # Extract the input from the event
+              price = int(event["price"])
+              discount = int(event["discount"])
+              
+              result = price * (1 - (discount / 100))
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps(result)
+              }
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 128
+
+  # Second Lambda Function (String Reversal)
+  StringReversalLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: StringReversalLambdaFunction
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+
+          def lambda_handler(event, context):
+              # Extract the input from the event
+              input_string = event["input_string"]
+              
+              if not input_string:
+                  return {
+                      'statusCode': 400,
+                      'body': json.dumps({'error': 'input_string is required'})
+                  }
+              
+              # Reverse the string
+              reversed_string = input_string[::-1]
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'original': input_string, 'reversed': reversed_string})
+              }
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 128
+
+  # Lambda Execution Role
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: LambdaExecutionRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -33,17 +83,83 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: LambdaS3Policy
+        - PolicyName: LambdaBasicExecution
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                Resource:
-                  - !Sub arn:aws:s3:::${InputBucketName}/*
-                  - !Sub arn:aws:s3:::${OutputBucketName}/*
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+  # Lambda Function for GET request
+  GetGreetingLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetGreetingLambdaFunction
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Hello! Welcome to our API!'})
+              }
+      Role: !GetAtt LambdaExecutionRole2.Arn
+      Timeout: 10
+      MemorySize: 128
+
+  # Lambda Function for POST request
+  PostEchoLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: PostEchoLambdaFunction
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+
+          def lambda_handler(event, context):
+            try:
+              # print(event)
+              # Extract the JSON body from the event
+              body = event
+              print(body)
+              return {
+                  'statusCode': 200,
+                  'body':  body
+              }
+            except Exception as e:
+              return {
+                  'statusCode': 400,
+                  'body': json.dumps({'error': 'Invalid input', 'message': str(e)})
+              }
+      Role: !GetAtt LambdaExecutionRole2.Arn
+      Timeout: 10
+      MemorySize: 128
+
+  # IAM Role for Lambda Functions
+  LambdaExecutionRole2:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaExecutionRole2
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaBasicExecution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -51,168 +167,201 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
-  # Lambda Function for GET /greet
-  GreetFunction:
-    Type: AWS::Lambda::Function
+  # API Gateway REST API
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
     Properties:
-      Handler: index.greet_lambda
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Code:
-        ZipFile: |
-          import json
+      Name: MySimpleAPI
 
-          def greet_lambda(event, context):
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps({'message': 'Hello! Welcome to our API!'})
-              }
-      Runtime: python3.8
-      Timeout: 10
-
-  # Lambda Function for POST /echo
-  EchoFunction:
-    Type: AWS::Lambda::Function
+  # API Gateway Resource (Root)
+  ApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
     Properties:
-      Handler: index.echo_lambda
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Code:
-        ZipFile: |
-          import json
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: "resource"
+      RestApiId: !Ref ApiGateway
 
-          def echo_lambda(event, context):
-              body = json.loads(event['body'])
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps({'echo': body})
-              }
-      Runtime: python3.8
-      Timeout: 10
-
-  # Lambda Function for Step Function
-  ProcessJSONFunction:
-    Type: AWS::Lambda::Function
+  # API Gateway Method for GET
+  ApiGatewayMethodGet:
+    Type: AWS::ApiGateway::Method
     Properties:
-      Handler: index.process_json
-      Role: !GetAtt LambdaExecutionRole.Arn
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetGreetingLambdaFunction.Arn}/invocations"
+          - {}
+        IntegrationResponses:
+          - StatusCode: 200
+      MethodResponses:
+        - StatusCode: 200
+
+  # API Gateway Method for POST
+  ApiGatewayMethodPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostEchoLambdaFunction.Arn}/invocations"
+          - {}
+        IntegrationResponses:
+          - StatusCode: 200
+      MethodResponses:
+        - StatusCode: 200
+
+  # Permission for API Gateway to invoke GetGreetingLambdaFunction
+  PermissionForGetLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetGreetingLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/GET/resource"
+        - {}
+
+  # Permission for API Gateway to invoke PostEchoLambdaFunction
+  PermissionForPostLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PostEchoLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/POST/resource"
+        - {}
+  LambdaExecutionRole3:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'S3Access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${InputBucket}/*'
+                  - !Sub 'arn:aws:s3:::${OutputBucket}/*'
+
+  MyLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole3.Arn
       Code:
         ZipFile: |
           import json
           import boto3
           import os
 
-          s3_client = boto3.client('s3')
+          s3 = boto3.client('s3')
 
-          def process_json(event, context):
+          def lambda_handler(event, context):
+              # Extract bucket and file name from the event
               input_bucket = event['Records'][0]['s3']['bucket']['name']
-              object_key = event['Records'][0]['s3']['object']['key']
-              response = s3_client.get_object(Bucket=input_bucket, Key=object_key)
-              json_content = json.loads(response['Body'].read())
+              input_key = event['Records'][0]['s3']['object']['key']
+              
+              # Read the JSON file from S3
+              response = s3.get_object(Bucket=input_bucket, Key=input_key)
+              json_content = json.loads(response['Body'].read().decode('utf-8'))
+              
+              output_bucket = os.environ['OUTPUT_BUCKET']  # Set as environment variable
+
+              # Loop through each item in the JSON array
               for item in json_content:
-                  name = item.get('name')
-                  height = item.get('height')
-                  content = f"The height of {name} is {height} cms."
+                  name = item['name']
+                  height = item['height']
+                  content = f"The height of {name} is {height} cms"
+
+                  # Create a text file in the output S3 bucket
                   output_key = f"{name}.txt"
-                  s3_client.put_object(Bucket=os.environ['OUTPUT_BUCKET'], Key=output_key, Body=content)
+                  s3.put_object(Bucket=output_bucket, Key=output_key, Body=content)
+              
               return {
                   'statusCode': 200,
                   'body': json.dumps('Files created successfully!')
               }
-      Runtime: python3.8
-      Timeout: 10
+      Runtime: python3.12
+      Timeout: 900
       Environment:
-        OUTPUT_BUCKET: !Ref OutputBucket
+        Variables:
+          OUTPUT_BUCKET: !Ref OutputBucket
 
-  # API Gateway
-  ApiGateway:
-    Type: AWS::ApiGateway::RestApi
+  # Permission for the S3 bucket to invoke the Lambda function
+  LambdaInvokePermission:
+    Type: 'AWS::Lambda::Permission'
     Properties:
-      Name: SampleAPI
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref MyLambdaFunction
+      Principal: 's3.amazonaws.com'
+      SourceArn: !GetAtt InputBucket.Arn
 
-  # Resource and Method for GET /greet
-  GreetResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      ParentId: !GetAtt ApiGateway.RootResourceId
-      RestApiId: !Ref ApiGateway
-      PathPart: greet
-
-  GreetMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: GET
-      ResourceId: !Ref GreetResource
-      RestApiId: !Ref ApiGateway
-      AuthorizationType: NONE
-      Integration:
-        Type: AWS_PROXY
-        IntegrationHttpMethod: POST
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GreetFunction.Arn}/invocations
-      MethodResponses:
-        - StatusCode: 200
-
-  # Resource and Method for POST /echo
-  EchoResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      ParentId: !GetAtt ApiGateway.RootResourceId
-      RestApiId: !Ref ApiGateway
-      PathPart: echo
-
-  EchoMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: POST
-      ResourceId: !Ref EchoResource
-      RestApiId: !Ref ApiGateway
-      AuthorizationType: NONE
-      Integration:
-        Type: AWS_PROXY
-        IntegrationHttpMethod: POST
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EchoFunction.Arn}/invocations
-      MethodResponses:
-        - StatusCode: 200
-
-  # IAM Role for Step Function
+  # Define the Step Function
   StepFunctionExecutionRole:
-    Type: AWS::IAM::Role
+    Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Effect: Allow
+          - Effect: 'Allow'
             Principal:
-              Service: states.amazonaws.com
-            Action: sts:AssumeRole
+              Service: 'states.amazonaws.com'
+            Action: 'sts:AssumeRole'
       Policies:
-        - PolicyName: StepFunctionPolicy
+        - PolicyName: 'StepFunctionLambdaInvoke'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource:
-                  - !GetAtt ProcessJSONFunction.Arn
+              - Effect: 'Allow'
+                Action: 'lambda:InvokeFunction'
+                Resource: !GetAtt MyLambdaFunction.Arn
 
-  # Step Function
-  ProcessJSONStepFunction:
-    Type: AWS::StepFunctions::StateMachine
+  StepFunction:
+    Type: 'AWS::StepFunctions::StateMachine'
     Properties:
-      RoleArn: !GetAtt StepFunctionExecutionRole.Arn
-      DefinitionString: !Sub |
-        {
-          "Comment": "A Step Function to process JSON files in S3",
-          "StartAt": "ProcessS3Event",
-          "States": {
-            "ProcessS3Event": {
-              "Type": "Task",
-              "Resource": "${ProcessJSONFunction.Arn}",
-              "End": true
+      DefinitionString:
+        Fn::Sub: |
+          {
+            "StartAt": "ProcessJSON",
+            "States": {
+              "ProcessJSON": {
+                "Type": "Task",
+                "Resource": "${MyLambdaFunction.Arn}",
+                "End": true
+              }
             }
           }
-        }
+      RoleArn: !GetAtt StepFunctionExecutionRole.Arn
 
 Outputs:
-  ApiGatewayUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+  PriceDiscountLambdaFunctionArn:
+    Description: "ARN of the Price and Discount Lambda Function"
+    Value: !GetAtt PriceDiscountLambdaFunction.Arn
+  
+  StringReversalLambdaFunctionArn:
+    Description: "ARN of the String Reversal Lambda Function"
+    Value: !GetAtt StringReversalLambdaFunction.Arn
+
+  ApiUrl:
+    Description: "URL of the API Gateway"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/resource"
