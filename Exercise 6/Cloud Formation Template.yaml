@@ -5,18 +5,18 @@ Resources:
   InputBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: my-input-bucket-unique-name
+      BucketName: sample-input-bucket-fecund
 
   OutputBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: my-output-bucket-unique-name
+      BucketName: sample-output-bucket-fecund
 
   # First Lambda Function (Price and Discount Calculation)
   PriceDiscountLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: PriceDiscountLambdaFunction
+      FunctionName: PriceDiscountLambda
       Runtime: python3.12
       Handler: index.lambda_handler
       Code:
@@ -34,7 +34,7 @@ Resources:
                   'statusCode': 200,
                   'body': json.dumps(result)
               }
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt LambdaExecutionRole4.Arn
       Timeout: 900
       MemorySize: 128
 
@@ -42,7 +42,7 @@ Resources:
   StringReversalLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: StringReversalLambdaFunction
+      FunctionName: StringReverseLambda
       Runtime: python3.12
       Handler: index.lambda_handler
       Code:
@@ -66,15 +66,15 @@ Resources:
                   'statusCode': 200,
                   'body': json.dumps({'original': input_string, 'reversed': reversed_string})
               }
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt LambdaExecutionRole4.Arn
       Timeout: 900
       MemorySize: 128
 
   # Lambda Execution Role
-  LambdaExecutionRole:
+  LambdaExecutionRole4:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: LambdaExecutionRole
+      RoleName: LambdaExecutionRole4
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -97,7 +97,7 @@ Resources:
   GetGreetingLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: GetGreetingLambdaFunction
+      FunctionName: GetGreetingLambda
       Runtime: python3.9
       Handler: index.lambda_handler
       Code:
@@ -117,7 +117,7 @@ Resources:
   PostEchoLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: PostEchoLambdaFunction
+      FunctionName: PostEchoLambda
       Runtime: python3.9
       Handler: index.lambda_handler
       Code:
@@ -266,6 +266,7 @@ Resources:
   MyLambdaFunction:
     Type: 'AWS::Lambda::Function'
     Properties:
+      FunctionName: EventNotificationLambda
       Handler: index.lambda_handler
       Role: !GetAtt LambdaExecutionRole3.Arn
       Code:
